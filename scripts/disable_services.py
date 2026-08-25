@@ -5,7 +5,7 @@ disable_services.py – Disable or revert Windows services with state backup.
 import subprocess
 import sys
 import ctypes
-from .state_manager import backup_service, restore_service
+from state_manager import backup_service, restore_service
 
 def is_admin():
     try:
