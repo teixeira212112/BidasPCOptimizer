@@ -1,0 +1,804 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bidas PC Optimizer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --black:   #030305;
+  --dark:    #08080f;
+  --panel:   #0d0d18;
+  --border:  #1a1a2e;
+  --border2: #252540;
+  --cyan:    #00e5ff;
+  --cyan2:   #00b8d9;
+  --cyan-dim:#003d4d;
+  --green:   #00ff88;
+  --red:     #ff3355;
+  --yellow:  #ffcc00;
+  --text:    #d0d0e8;
+  --muted:   #4a4a6a;
+  --mono: 'Space Mono', monospace;
+  --sans: 'Syne', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--sans);
+  background: var(--black);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* scanline overlay */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 9999;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,.07) 2px,
+    rgba(0,0,0,.07) 4px
+  );
+  pointer-events: none;
+}
+
+/* noise texture */
+body::after {
+  content: '';
+  position: fixed; inset: 0; z-index: 9998;
+  opacity: .025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+/* ── TITLEBAR ── */
+#titlebar {
+  height: 52px;
+  background: var(--dark);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 14px;
+  flex-shrink: 0;
+  position: relative;
+}
+#titlebar::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--cyan), transparent 60%);
+  opacity: .5;
+}
+
+.logo-mark {
+  width: 30px; height: 30px;
+  border: 1.5px solid var(--cyan);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono);
+  font-size: 13px; font-weight: 700;
+  color: var(--cyan);
+  position: relative;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+.logo-mark::before {
+  content: '';
+  position: absolute; inset: 3px;
+  background: rgba(0,229,255,.08);
+}
+
+.app-title {
+  font-family: var(--sans);
+  font-size: 15px; font-weight: 800;
+  letter-spacing: .04em;
+  color: #fff;
+}
+.app-title span { color: var(--cyan); }
+
+.spacer { flex: 1; }
+
+#admin-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 5px 12px;
+  border: 1px solid var(--border2);
+  clip-path: polygon(6px 0%, 100% 0%, calc(100% - 6px) 100%, 0% 100%);
+  display: flex; align-items: center; gap: 8px;
+  transition: border-color .3s, color .3s;
+}
+#admin-badge.ok  { border-color: var(--green); color: var(--green); }
+#admin-badge.bad { border-color: var(--red);   color: var(--red); }
+#admin-badge .led {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 6px currentColor;
+  animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* ── LAYOUT ── */
+#app { display: flex; flex: 1; overflow: hidden; }
+
+/* ── SIDEBAR ── */
+#sidebar {
+  width: 200px;
+  background: var(--dark);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+  position: relative;
+}
+#sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 1px;
+  background: linear-gradient(180deg, var(--cyan), transparent 70%);
+  opacity: .3;
+}
+
+.nav-section {
+  font-family: var(--mono);
+  font-size: 9px; letter-spacing: .15em;
+  color: var(--muted);
+  text-transform: uppercase;
+  padding: 16px 16px 6px;
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px;
+  cursor: pointer;
+  border: none; background: none;
+  width: 100%; text-align: left;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 13px; font-weight: 600;
+  position: relative;
+  transition: color .2s;
+  border-left: 2px solid transparent;
+}
+.nav-item:hover { color: var(--text); }
+.nav-item.active {
+  color: var(--cyan);
+  border-left-color: var(--cyan);
+  background: linear-gradient(90deg, rgba(0,229,255,.07), transparent);
+}
+.nav-item .ni { font-size: 14px; width: 18px; text-align: center; }
+
+/* ── MAIN ── */
+#main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+#page {
+  flex: 1; overflow-y: auto;
+  padding: 28px 28px 16px;
+  animation: fadeIn .25s ease;
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } }
+
+/* ── PAGE HEADER ── */
+.page-header { margin-bottom: 24px; }
+.page-header h2 {
+  font-family: var(--sans);
+  font-size: 22px; font-weight: 800;
+  letter-spacing: .01em;
+  display: flex; align-items: center; gap: 10px;
+}
+.page-header p {
+  font-family: var(--mono);
+  font-size: 11px; color: var(--muted);
+  margin-top: 4px; letter-spacing: .02em;
+}
+.page-header .line {
+  height: 1px; margin-top: 14px;
+  background: linear-gradient(90deg, var(--border2), transparent);
+}
+
+/* ── GRID ── */
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 12px; }
+
+/* ── CARD ── */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .25s, transform .2s;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+}
+.card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--cyan-dim), transparent 60%);
+  transition: opacity .3s;
+  opacity: 0;
+}
+.card:hover { border-color: var(--border2); transform: translateY(-1px); }
+.card:hover::before { opacity: 1; }
+
+.card-top { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.card-icon {
+  width: 38px; height: 38px; flex-shrink: 0;
+  background: rgba(0,229,255,.06);
+  border: 1px solid var(--border2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+  clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
+}
+.card-title {
+  font-family: var(--sans);
+  font-size: 14px; font-weight: 700;
+  letter-spacing: .01em;
+  margin-bottom: 3px;
+}
+.card-desc {
+  font-family: var(--mono);
+  font-size: 10.5px; color: var(--muted);
+  line-height: 1.6; letter-spacing: .01em;
+}
+.card-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+/* ── BUTTONS ── */
+.btn {
+  font-family: var(--mono);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: 8px 16px;
+  border: 1px solid; cursor: pointer;
+  transition: all .18s;
+  position: relative; overflow: hidden;
+  clip-path: polygon(4px 0%, 100% 0%, calc(100% - 4px) 100%, 0% 100%);
+}
+.btn::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: currentColor;
+  opacity: 0;
+  transition: opacity .18s;
+}
+.btn:hover::after { opacity: .08; }
+.btn:active { transform: scale(.97); }
+.btn:disabled { opacity: .3; pointer-events: none; }
+
+.btn-primary {
+  background: rgba(0,229,255,.1);
+  border-color: var(--cyan);
+  color: var(--cyan);
+  box-shadow: 0 0 12px rgba(0,229,255,.1);
+}
+.btn-primary:hover { box-shadow: 0 0 20px rgba(0,229,255,.25); }
+
+.btn-success {
+  background: rgba(0,255,136,.08);
+  border-color: var(--green);
+  color: var(--green);
+}
+.btn-danger {
+  background: rgba(255,51,85,.08);
+  border-color: var(--red);
+  color: var(--red);
+}
+.btn-ghost {
+  background: transparent;
+  border-color: var(--border2);
+  color: var(--muted);
+}
+.btn-ghost:hover { border-color: var(--muted); color: var(--text); }
+
+/* ── HOME HERO ── */
+.hero {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 32px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+  clip-path: polygon(0 0, calc(100% - 20px) 0, 100% 20px, 100% 100%, 0 100%);
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  top: -60px; right: -60px;
+  width: 240px; height: 240px;
+  background: radial-gradient(circle, rgba(0,229,255,.08) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-label {
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: .2em;
+  color: var(--cyan); text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 8px;
+}
+.hero-label::before {
+  content: ''; width: 20px; height: 1px; background: var(--cyan);
+}
+.hero h2 {
+  font-size: 26px; font-weight: 800;
+  line-height: 1.2; margin-bottom: 10px;
+}
+.hero p {
+  font-family: var(--mono);
+  font-size: 11px; color: var(--muted);
+  max-width: 480px; line-height: 1.8;
+}
+.hero-actions { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+
+/* stat strip */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px; margin-bottom: 24px;
+}
+.stat {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+}
+.stat-val {
+  font-family: var(--mono);
+  font-size: 22px; font-weight: 700;
+  color: var(--cyan);
+}
+.stat-label {
+  font-family: var(--mono);
+  font-size: 9px; letter-spacing: .12em;
+  color: var(--muted); text-transform: uppercase;
+  margin-top: 2px;
+}
+
+/* ── LOG BAR ── */
+#logbar {
+  height: 130px; flex-shrink: 0;
+  background: var(--dark);
+  border-top: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  position: relative;
+}
+#logbar::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, var(--cyan), transparent 50%);
+  opacity: .4;
+}
+#logbar-header {
+  padding: 6px 16px;
+  font-family: var(--mono);
+  font-size: 9px; letter-spacing: .15em; text-transform: uppercase;
+  color: var(--muted);
+  display: flex; align-items: center; gap: 8px;
+  border-bottom: 1px solid var(--border);
+}
+#logbar-header .led {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: blink 2s infinite;
+}
+#log {
+  flex: 1; overflow-y: auto;
+  padding: 6px 16px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.log-line {
+  display: flex; gap: 10px; align-items: baseline;
+  font-family: var(--mono); font-size: 11px;
+  animation: logIn .15s ease;
+}
+@keyframes logIn { from { opacity:0; transform: translateX(-4px); } }
+.log-ts { color: var(--muted); flex-shrink: 0; font-size: 10px; }
+.log-line.ok   .log-msg { color: var(--green); }
+.log-line.err  .log-msg { color: var(--red); }
+.log-line.warn .log-msg { color: var(--yellow); }
+.log-line.run  .log-msg { color: var(--cyan); }
+.log-line.dim  .log-msg { color: var(--muted); }
+
+/* ── SPINNER ── */
+#spinner {
+  display: none; position: fixed; inset: 0; z-index: 999;
+  background: rgba(3,3,5,.8); backdrop-filter: blur(6px);
+  align-items: center; justify-content: center; flex-direction: column; gap: 20px;
+}
+#spinner.show { display: flex; }
+.spin-box {
+  width: 56px; height: 56px;
+  border: 1.5px solid var(--border2);
+  position: relative;
+  clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 10px 100%, 0 calc(100% - 10px));
+  display: flex; align-items: center; justify-content: center;
+}
+.spin-box::before {
+  content: '';
+  position: absolute; inset: 4px;
+  border: 1.5px solid transparent;
+  border-top-color: var(--cyan);
+  border-right-color: var(--cyan);
+  border-radius: 0;
+  animation: spin .8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spin-box::after {
+  content: '';
+  width: 8px; height: 8px;
+  background: var(--cyan);
+  box-shadow: 0 0 12px var(--cyan);
+}
+#spinner-label {
+  font-family: var(--mono);
+  font-size: 12px; letter-spacing: .1em;
+  color: var(--cyan);
+}
+
+/* ── TOAST ── */
+#toasts {
+  position: fixed; top: 60px; right: 16px;
+  display: flex; flex-direction: column; gap: 8px; z-index: 1000;
+}
+.toast {
+  font-family: var(--mono); font-size: 11px; letter-spacing: .02em;
+  padding: 10px 16px;
+  border-left: 2px solid;
+  background: var(--panel);
+  animation: toastIn .2s ease;
+  max-width: 300px;
+  clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%);
+  box-shadow: 0 4px 24px rgba(0,0,0,.5);
+}
+@keyframes toastIn { from { opacity:0; transform: translateX(16px); } }
+.toast.success { border-color: var(--green); color: var(--green); }
+.toast.error   { border-color: var(--red);   color: var(--red); }
+.toast.info    { border-color: var(--cyan);   color: var(--cyan); }
+.toast.warn    { border-color: var(--yellow); color: var(--yellow); }
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ── PAGE TRANSITIONS ── */
+#page { scroll-behavior: smooth; }
+</style>
+</head>
+<body>
+
+<!-- Titlebar -->
+<div id="titlebar">
+  <div class="logo-mark">B</div>
+  <div class="app-title">BIDAS <span>PC OPTIMIZER</span></div>
+  <div class="spacer"></div>
+  <div id="admin-badge" class="bad">
+    <div class="led"></div>
+    <span id="admin-label">CHECKING</span>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+
+  <!-- Sidebar -->
+  <nav id="sidebar">
+    <div class="nav-section">// system</div>
+    <button class="nav-item active" onclick="go('home')"     data-p="home">    <span class="ni">◈</span> Home</button>
+    <button class="nav-item"        onclick="go('general')"  data-p="general"> <span class="ni">⚙</span> General</button>
+    <button class="nav-item"        onclick="go('power')"    data-p="power">   <span class="ni">⚡</span> Power</button>
+    <div class="nav-section">// performance</div>
+    <button class="nav-item"        onclick="go('gaming')"   data-p="gaming">  <span class="ni">◉</span> Gaming</button>
+    <button class="nav-item"        onclick="go('network')"  data-p="network"> <span class="ni">◈</span> Network</button>
+    <button class="nav-item"        onclick="go('memory')"   data-p="memory">  <span class="ni">▣</span> Memory</button>
+    <div class="nav-section">// cleanup</div>
+    <button class="nav-item"        onclick="go('services')" data-p="services"><span class="ni">▤</span> Services</button>
+    <button class="nav-item"        onclick="go('debloat')"  data-p="debloat"> <span class="ni">✕</span> Debloat</button>
+    <button class="nav-item"        onclick="go('mouse')"    data-p="mouse">   <span class="ni">◎</span> Mouse</button>
+    <button class="nav-item"        onclick="go('explorer')" data-p="explorer"><span class="ni">▦</span> Explorer</button>
+  </nav>
+
+  <!-- Main -->
+  <div id="main">
+    <div id="page"></div>
+
+    <!-- Log -->
+    <div id="logbar">
+      <div id="logbar-header">
+        <div class="led"></div>
+        activity log
+      </div>
+      <div id="log"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Spinner -->
+<div id="spinner">
+  <div class="spin-box"></div>
+  <div id="spinner-label">RUNNING...</div>
+</div>
+
+<!-- Toasts -->
+<div id="toasts"></div>
+
+<script>
+const API = 'http://127.0.0.1:59821';
+let isAdmin = false;
+
+// ── Utilities ──────────────────────────────────────────────────────────
+
+function ts() { return new Date().toTimeString().slice(0,8); }
+
+function log(msg, type='') {
+  const el = document.createElement('div');
+  el.className = `log-line ${type}`;
+  el.innerHTML = `<span class="log-ts">[${ts()}]</span><span class="log-msg">${msg}</span>`;
+  const c = document.getElementById('log');
+  c.appendChild(el);
+  c.scrollTop = c.scrollHeight;
+}
+
+function toast(msg, type='info') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.style.opacity = '0', 3000);
+  setTimeout(() => el.remove(), 3300);
+}
+
+function showSpinner(label) {
+  document.getElementById('spinner-label').textContent = label.toUpperCase();
+  document.getElementById('spinner').classList.add('show');
+}
+function hideSpinner() {
+  document.getElementById('spinner').classList.remove('show');
+}
+
+// ── API ─────────────────────────────────────────────────────────────────
+
+async function runTweak(script, args, label) {
+  log(`▶ ${label}`, 'run');
+  showSpinner(label);
+  try {
+    const res = await fetch(`${API}/api/run`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ script, args }),
+    });
+    const r = await res.json();
+    hideSpinner();
+    if (r.ok) {
+      log(`✓ ${r.msg || 'Done.'}`, 'ok');
+      toast(label + ' — done', 'success');
+    } else {
+      log(`✕ ${r.msg}`, 'err');
+      toast('Failed — check log', 'error');
+    }
+  } catch(e) {
+    hideSpinner();
+    log(`✕ ${e}`, 'err');
+    toast('Connection error', 'error');
+  }
+}
+
+async function loadInfo() {
+  try {
+    const res  = await fetch(`${API}/api/info`);
+    const info = await res.json();
+    isAdmin = info.admin;
+    const badge = document.getElementById('admin-badge');
+    const label = document.getElementById('admin-label');
+    if (isAdmin) {
+      badge.className = 'admin-badge ok';
+      label.textContent = 'ADMIN';
+      log('✓ Running as Administrator', 'ok');
+    } else {
+      badge.className = 'admin-badge bad';
+      label.textContent = 'NO ADMIN';
+      log('⚠ Not Administrator — tweaks may fail', 'warn');
+    }
+    log(`> scripts: ${info.scripts_dir}`, 'dim');
+    log('✓ System ready', 'ok');
+  } catch(e) {
+    log('✕ Backend unreachable', 'err');
+  }
+}
+
+// ── Page builder helpers ───────────────────────────────────────────────
+
+function card(icon, title, desc, actions='') {
+  return `
+  <div class="card">
+    <div class="card-top">
+      <div class="card-icon">${icon}</div>
+      <div>
+        <div class="card-title">${title}</div>
+        <div class="card-desc">${desc}</div>
+      </div>
+    </div>
+    ${actions ? `<div class="card-actions">${actions}</div>` : ''}
+  </div>`;
+}
+
+function hdr(icon, title, sub) {
+  return `<div class="page-header">
+    <h2>${icon} ${title}</h2>
+    <p>${sub}</p>
+    <div class="line"></div>
+  </div>`;
+}
+
+// ── Pages ──────────────────────────────────────────────────────────────
+
+const PAGES = {
+
+  home: () => `
+    <div class="hero">
+      <div class="hero-label">System Optimizer</div>
+      <h2>Your PC.<br>Fully Unleashed.</h2>
+      <p>// Apply precision Windows tweaks — power plans, gaming optimizations,<br>// debloat, service cleanup, and network tuning. All reversible.</p>
+      <div class="hero-actions">
+        <button class="btn btn-primary" onclick="runTweak('tweaks.ps1',['-Action','all'],'Applying all tweaks')">⚡ OPTIMIZE ALL</button>
+        <button class="btn btn-ghost"   onclick="go('gaming')">Gaming Tweaks →</button>
+        <button class="btn btn-ghost"   onclick="go('services')">Services →</button>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="stat-val">8+</div><div class="stat-label">Tweak Categories</div></div>
+      <div class="stat"><div class="stat-val">50+</div><div class="stat-label">Optimizations</div></div>
+      <div class="stat"><div class="stat-val">100%</div><div class="stat-label">Reversible</div></div>
+      <div class="stat"><div class="stat-val">0</div><div class="stat-label">Telemetry</div></div>
+    </div>
+    <div class="grid">
+      ${card('⚡','Power Plan','Ultimate Performance power plan activation.',
+        `<button class="btn btn-primary" onclick="go('power')">Configure</button>`)}
+      ${card('◉','Gaming','Game Bar, HAGS, GPU priority tweaks.',
+        `<button class="btn btn-primary" onclick="go('gaming')">Configure</button>`)}
+      ${card('◈','Network','TCP optimization and DNS tuning.',
+        `<button class="btn btn-primary" onclick="go('network')">Configure</button>`)}
+      ${card('✕','Debloat','Remove pre-installed Windows bloatware.',
+        `<button class="btn btn-danger"  onclick="go('debloat')">Configure</button>`)}
+    </div>`,
+
+  general: () => `
+    ${hdr('⚙','General','// system-wide registry and performance tweaks')}
+    <div class="grid">
+      ${card('🔒','Telemetry & Tracking','Disable Windows data collection and background telemetry.',
+        `<button class="btn btn-danger"  onclick="runTweak('tweaks.ps1',['-Action','visuals'],'Disabling telemetry')">Disable</button>
+         <button class="btn btn-ghost"   onclick="runTweak('tweaks.ps1',['-Action','revert_visuals'],'Reverting telemetry')">↩ Revert</button>`)}
+      ${card('◈','Visual Effects','Strip animations and visual effects for raw speed.',
+        `<button class="btn btn-primary" onclick="runTweak('tweaks.ps1',['-Action','visuals'],'Disabling visual effects')">Apply</button>
+         <button class="btn btn-ghost"   onclick="runTweak('tweaks.ps1',['-Action','revert_visuals'],'Reverting visuals')">↩ Revert</button>`)}
+      ${card('▦','Explorer','Optimize Windows Explorer settings and performance.',
+        `<button class="btn btn-primary" onclick="runTweak('tweaks.ps1',['-Action','explorer'],'Optimizing Explorer')">Apply</button>
+         <button class="btn btn-ghost"   onclick="runTweak('tweaks.ps1',['-Action','revert_explorer'],'Reverting Explorer')">↩ Revert</button>`)}
+      ${card('⚡','Apply All','Run every general tweak at once.',
+        `<button class="btn btn-success" onclick="runTweak('tweaks.ps1',['-Action','all'],'Applying all tweaks')">⚡ Apply All</button>`)}
+    </div>`,
+
+  power: () => `
+    ${hdr('⚡','Power','// maximize cpu and system power delivery')}
+    <div class="grid">
+      ${card('⚡','Ultimate Performance','Activates the Ultimate Performance (or High Performance) power plan.',
+        `<button class="btn btn-primary" onclick="runTweak('tweaks.ps1',['-Action','power'],'Activating power plan')">Activate</button>
+         <button class="btn btn-ghost"   onclick="runTweak('tweaks.ps1',['-Action','revert_power'],'Reverting power plan')">↩ Revert</button>`)}
+      ${card('💤','Hibernation','Disable hibernation to free disk space and reduce stutter.',
+        `<button class="btn btn-ghost"   onclick="runTweak('tweaks.ps1',['-Action','power'],'Disabling hibernation')">Disable</button>`)}
+      ${card('🔌','USB Suspend','Disable USB selective suspend for stable peripherals.',
+        `<button class="btn btn-primary" onclick="runTweak('tweaks.ps1',['-Action','power'],'Configuring USB suspend')">Apply</button>`)}
+    </div>`,
+
+  gaming: () => `
+    ${hdr('◉','Gaming','// reduce input lag and maximize frame delivery')}
+    <div class="grid">
+      ${card('📹','Game DVR / Bar','Disable Xbox Game Bar and background recording overhead.',
+        `<button class="btn btn-danger"  onclick="runTweak('tweaks.ps1',['-Action','gaming'],'Disabling Game Bar')">Disable</button>
+         <button class="btn btn-ghost"   onclick="runTweak('tweaks.ps1',['-Action','revert_gaming'],'Reverting gaming')">↩ Revert</button>`)}
+      ${card('🖥','HAGS','Enable Hardware-Accelerated GPU Scheduling.',
+        `<button class="btn btn-primary" onclick="runTweak('tweaks.ps1',['-Action','gaming'],'Enabling HAGS')">Enable</button>`)}
+      ${card('🎯','Game Priority','Set game processes to high CPU scheduling priority.',
+        `<button class="btn btn-primary" onclick="runTweak('tweaks.ps1',['-Action','gaming'],'Setting game priority')">Apply</button>`)}
+      ${card('⚡','Apply All Gaming','All gaming tweaks in one click.',
+        `<button class="btn btn-success" onclick="runTweak('tweaks.ps1',['-Action','gaming'],'Applying all gaming tweaks')">⚡ Apply All</button>
+         <button class="btn btn-ghost"   onclick="runTweak('tweaks.ps1',['-Action','revert_gaming'],'Reverting gaming tweaks')">↩ Revert All</button>`)}
+    </div>`,
+
+  network: () => `
+    ${hdr('◈','Network','// lower latency and optimize tcp throughput')}
+    <div class="grid">
+      ${card('📡','TCP Optimization','Tune TCP stack for lower latency and better throughput.',
+        `<button class="btn btn-primary" onclick="runTweak('tweaks.ps1',['-Action','network'],'Optimizing TCP')">Apply</button>
+         <button class="btn btn-ghost"   onclick="runTweak('tweaks.ps1',['-Action','revert_network'],'Reverting network')">↩ Revert</button>`)}
+      ${card('🔄','Flush DNS','Clear DNS cache to resolve connection issues.',
+        `<button class="btn btn-ghost"   onclick="runTweak('tweaks.ps1',['-Action','network'],'Flushing DNS')">Flush</button>`)}
+      ${card('🌍','DNS Priority','Optimize DNS query prioritization.',
+        `<button class="btn btn-ghost"   onclick="runTweak('tweaks.ps1',['-Action','network'],'Setting DNS priority')">Apply</button>`)}
+    </div>`,
+
+  services: () => `
+    ${hdr('▤','Services','// disable unnecessary windows background services')}
+    <div class="grid">
+      ${card('▤','Disable Services','Kills non-essential services: Xbox, Remote Desktop, Print Spooler, Telemetry, Bluetooth, and more.',
+        `<button class="btn btn-primary" onclick="runTweak('disable_services.ps1',[],'Disabling services')">⚙ Disable</button>
+         <button class="btn btn-ghost"   onclick="runTweak('disable_services.ps1',['-Revert'],'Reverting services')">↩ Revert</button>`)}
+      ${card('ℹ','Safe to disable','All services targeted are non-essential for gaming and everyday use. Revert restores them all.','')}
+    </div>`,
+
+  debloat: () => `
+    ${hdr('✕','Debloat','// strip pre-installed windows bloatware')}
+    <div class="grid">
+      ${card('✕','Remove Bloatware','Removes Cortana, Bing apps, Mixed Reality, 3D Viewer, Xbox apps, and other Microsoft bloat.',
+        `<button class="btn btn-danger"  onclick="runTweak('debloat.ps1',[],'Removing bloatware')">✕ Remove</button>
+         <button class="btn btn-ghost"   onclick="runTweak('debloat.ps1',['-Revert'],'Restoring apps')">↩ Restore</button>`)}
+      ${card('⚠','Warning','Some apps cannot be restored. Windows Update may reinstall certain apps after removal.','')}
+    </div>`,
+
+  mouse: () => `
+    ${hdr('◎','Mouse & Input','// raw input for consistent aim and precision')}
+    <div class="grid">
+      ${card('◎','Disable Acceleration','Remove mouse pointer acceleration (Enhance Pointer Precision).',
+        `<button class="btn btn-primary" onclick="runTweak('tweaks.ps1',['-Action','mouse'],'Disabling mouse acceleration')">Apply</button>
+         <button class="btn btn-ghost"   onclick="runTweak('tweaks.ps1',['-Action','revert_mouse'],'Reverting mouse')">↩ Revert</button>`)}
+      ${card('✨','Remove Effects','Disable mouse trails, shadow, and pointer effects.',
+        `<button class="btn btn-ghost"   onclick="runTweak('tweaks.ps1',['-Action','mouse'],'Removing mouse effects')">Disable</button>`)}
+    </div>`,
+
+  memory: () => `
+    ${hdr('▣','Memory','// optimize ram allocation and cache management')}
+    <div class="grid">
+      ${card('🧹','Clear RAM Cache','Force Windows to flush memory cache back to available RAM.',
+        `<button class="btn btn-success" onclick="runTweak('tweaks.ps1',['-Action','ram'],'Clearing RAM cache')">▣ Clear</button>`)}
+      ${card('⚙','RAM Tweaks','Registry tweaks to improve Windows memory management.',
+        `<button class="btn btn-primary" onclick="runTweak('tweaks.ps1',['-Action','ram'],'Applying RAM tweaks')">Apply</button>`)}
+    </div>`,
+
+  explorer: () => `
+    ${hdr('▦','Explorer','// speed up file browsing and shell responsiveness')}
+    <div class="grid">
+      ${card('▦','Optimize Explorer','Disable thumbnail cache, speed up folder loading, clean right-click context menu.',
+        `<button class="btn btn-primary" onclick="runTweak('tweaks.ps1',['-Action','explorer'],'Optimizing Explorer')">Apply</button>
+         <button class="btn btn-ghost"   onclick="runTweak('tweaks.ps1',['-Action','revert_explorer'],'Reverting Explorer')">↩ Revert</button>`)}
+    </div>`,
+};
+
+// ── Navigation ─────────────────────────────────────────────────────────
+
+function go(name) {
+  const fn = PAGES[name];
+  if (!fn) return;
+  const pg = document.getElementById('page');
+  pg.style.opacity = '0';
+  pg.style.transform = 'translateY(6px)';
+  setTimeout(() => {
+    pg.innerHTML = fn();
+    pg.style.transition = 'opacity .2s, transform .2s';
+    pg.style.opacity = '1';
+    pg.style.transform = 'translateY(0)';
+  }, 100);
+  document.querySelectorAll('.nav-item').forEach(b => {
+    b.classList.toggle('active', b.dataset.p === name);
+  });
+}
+
+// ── Init ───────────────────────────────────────────────────────────────
+
+window.addEventListener('load', () => {
+  go('home');
+  loadInfo();
+});
+</script>
+</body>
+</html>
+HTMLEOF
+echo "done"

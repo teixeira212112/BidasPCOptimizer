@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Bidas PC Optimizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:        #050508;
+  --surface:   #0c0c14;
+  --glass:     rgba(255,255,255,0.04);
+  --glass2:    rgba(255,255,255,0.07);
+  --border:    rgba(255,255,255,0.08);
+  --border2:   rgba(255,255,255,0.14);
+  --blue:      #3b82f6;
+  --blue2:     #60a5fa;
+  --violet:    #8b5cf6;
+  --cyan:      #06b6d4;
+  --emerald:   #10b981;
+  --amber:     #f59e0b;
+  --rose:      #f43f5e;
+  --text:      #f1f5f9;
+  --text2:     #94a3b8;
+  --text3:     #475569;
+  --glow-blue: 0 0 40px rgba(59,130,246,0.15);
+  --glow-violet: 0 0 40px rgba(139,92,246,0.15);
+  --radius:    16px;
+  --radius-sm: 10px;
+  --font:      'Outfit', sans-serif;
+  --mono:      'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  overflow: hidden;
+  user-select: none;
+  -webkit-app-region: no-drag; /* Garante que nada arraste a janela sem autorização */
+}
+
+/* TITLE BAR CUSTOMIZADA (arrastável) */
+.title-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 38px;
+  background: rgba(8,8,16,0.85);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px 0 20px;
+  z-index: 1000;
+  -webkit-app-region: drag;
+}
+.title-bar-drag {
+  -webkit-app-region: drag;
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text2);
+}
+.title-bar-buttons {
+  -webkit-app-region: no-drag;
+  display: flex;
+  gap: 10px;
+}
+.title-bar-btn {
+  background: transparent;
+  border: none;
+  color: var(--text2);
+  font-size: 16px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.title-bar-btn:hover {
+  background: var(--glass2);
+  color: var(--text);
+}
+.title-bar-btn.close:hover {
+  background: var(--rose);
+  color: white;
+}
+
+/* Ajuste do layout principal para compensar a title bar */
+#app {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  padding-top: 38px; /* Espaço para a barra de título */
+  -webkit-app-region: no-drag;
+}
+
+#sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: rgba(8,8,16,0.7);
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(40px);
+  display: flex;
+  flex-direction: column;
+  padding: 28px 16px 24px;
+  gap: 4px;
+  position: relative;
+  -webkit-app-region: no-drag;
+}
+
+/* Restante do CSS permanece igual ao original */
+.logo {
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 8px 28px;
+}
+.logo-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: linear-gradient(135deg, var(--blue), var(--violet));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+  box-shadow: 0 0 20px rgba(139,92,246,0.4);
+  flex-shrink: 0;
+}
+.logo-text { line-height: 1.2; }
+.logo-text strong { font-size: 15px; font-weight: 700; display: block; }
+.logo-text span { font-size: 11px; color: var(--text3); font-weight: 400; }
+
+.nav-section-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.12em;
+  color: var(--text3); text-transform: uppercase;
+  padding: 16px 10px 6px;
+}
+
+.nav-btn {
+  display: flex; align-items: center; gap: 11px;
+  padding: 10px 12px; border-radius: var(--radius-sm);
+  cursor: pointer; border: none; background: transparent;
+  color: var(--text2); font-family: var(--font); font-size: 13.5px; font-weight: 500;
+  transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+  width: 100%; text-align: left; position: relative; overflow: hidden;
+}
+.nav-btn .nav-icon { font-size: 16px; flex-shrink: 0; transition: transform 0.2s; }
+.nav-btn:hover { background: var(--glass2); color: var(--text); }
+.nav-btn:hover .nav-icon { transform: scale(1.15); }
+.nav-btn.active {
+  background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(139,92,246,0.10));
+  color: var(--blue2);
+  border: 1px solid rgba(59,130,246,0.2);
+}
+.nav-btn.active::before {
+  content: '';
+  position: absolute; left: 0; top: 20%; bottom: 20%;
+  width: 3px; border-radius: 0 4px 4px 0;
+  background: linear-gradient(to bottom, var(--blue), var(--violet));
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding: 16px 10px 0;
+  border-top: 1px solid var(--border);
+}
+.admin-badge {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border-radius: 8px;
+  font-size: 11.5px; font-weight: 500;
+}
+.admin-badge.ok  { background: rgba(16,185,129,0.1); color: var(--emerald); border: 1px solid rgba(16,185,129,0.2); }
+.admin-badge.bad { background: rgba(244,63,94,0.1);  color: var(--rose);    border: 1px solid rgba(244,63,94,0.2); }
+.version { margin-top: 10px; font-size: 11px; color: var(--text3); padding: 0 2px; }
+
+#main {
+  flex: 1; display: flex; flex-direction: column;
+  overflow: hidden; position: relative;
+  -webkit-app-region: no-drag;
+}
+
+#page-header {
+  padding: 20px 36px 16px;
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  background: rgba(5,5,8,0.4);
+  flex-shrink: 0;
+}
+.page-title { font-size: 26px; font-weight: 700; letter-spacing: -0.5px; }
+.page-subtitle { font-size: 13px; color: var(--text2); margin-top: 3px; }
+
+#page-content {
+  flex: 1; overflow-y: auto; padding: 28px 36px;
+  scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.08) transparent;
+}
+#page-content::-webkit-scrollbar { width: 5px; }
+#page-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 3px; }
+
+#log-bar {
+  border-top: 1px solid var(--border);
+  background: rgba(5,5,8,0.8);
+  backdrop-filter: blur(20px);
+  flex-shrink: 0;
+  padding: 10px 36px 14px;
+  max-height: 140px;
+  overflow: hidden;
+}
+.log-header {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+  color: var(--text3); text-transform: uppercase; margin-bottom: 6px;
+  display: flex; align-items: center; gap: 8px;
+}
+.log-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--emerald);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; } 50% { opacity: 0.3; }
+}
+#log-output {
+  font-family: var(--mono); font-size: 11.5px;
+  color: var(--text2); line-height: 1.7;
+  max-height: 88px; overflow-y: auto;
+  scrollbar-width: none;
+}
+#log-output .log-ok   { color: var(--emerald); }
+#log-output .log-err  { color: var(--rose); }
+#log-output .log-run  { color: var(--blue2); }
+#log-output .log-warn { color: var(--amber); }
+
+/* Outros estilos (cards, botões, etc.) mantidos do original */
+.grid { display: grid; gap: 16px; }
+.grid-2 { grid-template-columns: repeat(2, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
+.col-span-2 { grid-column: span 2; }
+.col-span-3 { grid-column: span 3; }
+
+.card {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+  position: relative; overflow: hidden;
+}
+.card::before {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 60%);
+  pointer-events: none;
+}
+.card:hover {
+  background: var(--glass2);
+  border-color: var(--border2);
+  transform: translateY(-2px);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3), var(--glow-blue);
+}
+.card-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; margin-bottom: 14px;
+  background: var(--glass2);
+  border: 1px solid var(--border);
+}
+.card-title  { font-size: 15px; font-weight: 600; margin-bottom: 6px; }
+.card-desc   { font-size: 12.5px; color: var(--text2); line-height: 1.6; margin-bottom: 18px; }
+.card-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 18px; border-radius: 8px; border: none;
+  font-family: var(--font); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all 0.18s cubic-bezier(0.4,0,0.2,1);
+  position: relative; overflow: hidden; white-space: nowrap;
+}
+.btn::after {
+  content: ''; position: absolute; inset: 0;
+  background: rgba(255,255,255,0); transition: background 0.15s;
+}
+.btn:hover::after { background: rgba(255,255,255,0.07); }
+.btn:active { transform: scale(0.97); }
+.btn-primary {
+  background: linear-gradient(135deg, var(--blue), var(--violet));
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(59,130,246,0.3);
+}
+.btn-primary:hover { box-shadow: 0 6px 24px rgba(59,130,246,0.5); transform: translateY(-1px); }
+.btn-danger  {
+  background: linear-gradient(135deg, var(--rose), #dc2626);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(244,63,94,0.25);
+}
+.btn-danger:hover { box-shadow: 0 6px 24px rgba(244,63,94,0.4); transform: translateY(-1px); }
+.btn-success {
+  background: linear-gradient(135deg, var(--emerald), #059669);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(16,185,129,0.25);
+}
+.btn-success:hover { box-shadow: 0 6px 24px rgba(16,185,129,0.4); transform: translateY(-1px); }
+.btn-ghost {
+  background: var(--glass2); color: var(--text2);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover { background: rgba(255,255,255,0.1); color: var(--text); border-color: var(--border2); }
+.btn-xl {
+  padding: 14px 28px; font-size: 14.5px; border-radius: 12px;
+}
+.hero-card {
+  background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(139,92,246,0.08));
+  border: 1px solid rgba(59,130,246,0.25);
+  border-radius: 20px; padding: 32px 36px;
+  margin-bottom: 20px; position: relative; overflow: hidden;
+}
+.hero-card::after {
+  content: ''; position: absolute;
+  top: -60px; right: -60px; width: 280px; height: 280px;
+  background: radial-gradient(circle, rgba(139,92,246,0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-title {
+  font-size: 32px; font-weight: 800; letter-spacing: -0.8px;
+  background: linear-gradient(135deg, #fff 40%, var(--blue2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text; margin-bottom: 8px;
+}
+.hero-sub { font-size: 14px; color: var(--text2); margin-bottom: 28px; max-width: 480px; line-height: 1.6; }
+.stat-chips { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+.chip {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 14px; border-radius: 100px;
+  font-size: 12px; font-weight: 600;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+  color: var(--text2);
+}
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+.chip-blue .dot   { background: var(--blue); }
+.chip-violet .dot { background: var(--violet); }
+.chip-cyan .dot   { background: var(--cyan); }
+.chip-green .dot  { background: var(--emerald); }
+.quick-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.q-card {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 16px; cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4,0,0.2,1);
+}
+.q-card:hover {
+  background: var(--glass2); border-color: var(--border2);
+  transform: translateY(-3px);
+  box-shadow: 0 16px 32px rgba(0,0,0,0.3);
+}
+.q-card .q-icon { font-size: 22px; margin-bottom: 8px; }
+.q-card .q-name { font-size: 13px; font-weight: 600; }
+.q-card .q-desc { font-size: 11.5px; color: var(--text2); margin-top: 3px; }
+.warn-banner {
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.2);
+  border-radius: var(--radius-sm);
+  padding: 14px 18px; font-size: 12.5px;
+  color: var(--amber); line-height: 1.6;
+  display: flex; gap: 12px; align-items: flex-start;
+}
+#progress-overlay {
+  display: none; position: fixed; inset: 0; z-index: 100;
+  background: rgba(5,5,8,0.85); backdrop-filter: blur(12px);
+  align-items: center; justify-content: center; flex-direction: column; gap: 20px;
+}
+#progress-overlay.show { display: flex; }
+.spinner {
+  width: 52px; height: 52px; border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.08);
+  border-top-color: var(--blue);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+.spinner-label { font-size: 15px; font-weight: 500; color: var(--text2); }
+#toast-container {
+  position: fixed; top: 54px; right: 24px; z-index: 200;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.toast {
+  padding: 14px 20px; border-radius: 12px;
+  font-size: 13px; font-weight: 500;
+  backdrop-filter: blur(20px);
+  animation: toastIn 0.35s cubic-bezier(0.4,0,0.2,1) forwards;
+  max-width: 340px; box-shadow: 0 16px 40px rgba(0,0,0,0.4);
+  display: flex; align-items: center; gap: 10px;
+}
+.toast.success { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; }
+.toast.error   { background: rgba(244,63,94,0.15);  border: 1px solid rgba(244,63,94,0.3);  color: #fca5a5; }
+.toast.info    { background: rgba(59,130,246,0.15);  border: 1px solid rgba(59,130,246,0.3);  color: #93c5fd; }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes toastOut {
+  to   { opacity: 0; transform: translateX(20px); }
+}
+#log-output::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+
+<!-- TITLE BAR CUSTOMIZADA -->
+<div class="title-bar">
+  <div class="title-bar-drag">Bidas PC Optimizer v1.0</div>
+  <div class="title-bar-buttons">
+    <button class="title-bar-btn" id="btn-minimize">─</button>
+    <button class="title-bar-btn" id="btn-maximize">□</button>
+    <button class="title-bar-btn close" id="btn-close">✕</button>
+  </div>
+</div>
+
+<div id="app">
+  <nav id="sidebar">
+    <div class="logo">
+      <div class="logo-icon">⚡</div>
+      <div class="logo-text">
+        <strong>Bidas</strong>
+        <span>PC Optimizer</span>
+      </div>
+    </div>
+    <div class="nav-section-label">Optimize</div>
+    <button class="nav-btn active" onclick="nav('home')"     id="nav-home">     <span class="nav-icon">🏠</span> Home </button>
+    <button class="nav-btn"        onclick="nav('debloat')"  id="nav-debloat">  <span class="nav-icon">🗑️</span> Debloat </button>
+    <button class="nav-btn"        onclick="nav('services')" id="nav-services"> <span class="nav-icon">⚙️</span> Services </button>
+    <button class="nav-btn"        onclick="nav('power')"    id="nav-power">    <span class="nav-icon">⚡</span> Power & CPU </button>
+    <button class="nav-btn"        onclick="nav('gaming')"   id="nav-gaming">   <span class="nav-icon">🎮</span> Gaming </button>
+    <button class="nav-btn"        onclick="nav('network')"  id="nav-network">  <span class="nav-icon">🌐</span> Network </button>
+    <button class="nav-btn"        onclick="nav('mouse')"    id="nav-mouse">    <span class="nav-icon">🖱️</span> Mouse & Input </button>
+    <button class="nav-btn"        onclick="nav('ram')"      id="nav-ram">      <span class="nav-icon">🧠</span> RAM & Storage </button>
+    <div class="nav-section-label">System</div>
+    <button class="nav-btn"        onclick="nav('revert')"   id="nav-revert">   <span class="nav-icon">↩️</span> Revert Tweaks </button>
+    <div class="sidebar-footer">
+      <div class="admin-badge" id="admin-badge">
+        <span id="admin-icon">✓</span>
+        <span id="admin-label">Administrator</span>
+      </div>
+      <div class="version">v1.0 · by Bidas</div>
+    </div>
+  </nav>
+
+  <div id="main">
+    <div id="page-header">
+      <div class="page-title" id="page-title">Home</div>
+      <div class="page-subtitle" id="page-subtitle">Welcome to Bidas PC Optimizer</div>
+    </div>
+    <div id="page-content"></div>
+    <div id="log-bar">
+      <div class="log-header">
+        <div class="log-dot"></div>
+        Activity Log
+      </div>
+      <div id="log-output"></div>
+    </div>
+  </div>
+</div>
+
+<div id="progress-overlay">
+  <div class="spinner"></div>
+  <div class="spinner-label" id="spinner-label">Running...</div>
+</div>
+<div id="toast-container"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────
+let currentPage = 'home';
+let isAdmin = false;
+let logInitialized = false;
+let winMaximized = false;
+
+// ── Utilities ──────────────────────────────────────────
+function clearLog() {
+  const logEl = document.getElementById('log-output');
+  logEl.innerHTML = '';
+}
+
+function log(msg, type='') {
+  const el = document.getElementById('log-output');
+  const line = document.createElement('span');
+  if (type) line.className = 'log-' + type;
+  line.textContent = msg;
+  el.appendChild(line);
+  el.appendChild(document.createElement('br'));
+  el.scrollTop = el.scrollHeight;
+}
+
+function toast(msg, type='info') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  const icons = { success: '✓', error: '✕', info: 'ℹ' };
+  t.innerHTML = `<span>${icons[type]||'•'}</span>${msg}`;
+  c.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = 'toastOut 0.3s forwards';
+    setTimeout(() => t.remove(), 300);
+  }, 3500);
+}
+
+function showSpinner(label) {
+  document.getElementById('spinner-label').textContent = label;
+  document.getElementById('progress-overlay').classList.add('show');
+}
+function hideSpinner() {
+  document.getElementById('progress-overlay').classList.remove('show');
+}
+
+// ── Controle da janela (via API) com alternância correta ──
+function setupWindowControls() {
+  const btnMin = document.getElementById('btn-minimize');
+  const btnMax = document.getElementById('btn-maximize');
+  const btnClose = document.getElementById('btn-close');
+
+  btnMin.onclick = () => {
+    if (window.pywebview && window.pywebview.api) window.pywebview.api.window_minimize();
+  };
+
+  btnMax.onclick = () => {
+    if (!window.pywebview || !window.pywebview.api) return;
+    if (winMaximized) {
+      window.pywebview.api.window_restore();
+    } else {
+      window.pywebview.api.window_maximize();
+    }
+  };
+
+  btnClose.onclick = () => {
+    if (window.pywebview && window.pywebview.api) window.pywebview.api.window_close();
+  };
+
+  // Detecta mudanças de estado da janela (ex: duplo clique na barra)
+  window.addEventListener('resize', () => {
+    const isMax = window.outerWidth >= screen.availWidth && 
+                  window.outerHeight >= screen.availHeight;
+    if (isMax !== winMaximized) {
+      winMaximized = isMax;
+      btnMax.textContent = winMaximized ? '❐' : '□';
+    }
+  });
+
+  // Estado inicial
+  winMaximized = window.outerWidth >= screen.availWidth && 
+                 window.outerHeight >= screen.availHeight;
+  btnMax.textContent = winMaximized ? '❐' : '□';
+}
+
+// ── Bridge to Python via pywebview (com reset do log) ──
+function runTweak(script, args, label) {
+  clearLog();                       // Reset do log antes de cada ação
+  log(`▶ ${label}`, 'run');
+  showSpinner(label);
+
+  window.tweakDone = function(success, scriptName, errorMsg) {
+    hideSpinner();
+    if (success) {
+      log(`✓ ${label} complete`, 'ok');
+      toast(label.replace('...', ' complete'), 'success');
+    } else {
+      log(`✕ ${errorMsg || 'Unknown error'}`, 'err');
+      toast('Error — check log', 'error');
+    }
+    window.tweakDone = null;
+  };
+
+  // Timeout de segurança
+  setTimeout(() => {
+    if (window.tweakDone) {
+      hideSpinner();
+      log(`⚠ Timeout waiting for ${label}`, 'warn');
+      toast('Operation timeout', 'error');
+      window.tweakDone = null;
+    }
+  }, 60000);
+
+  if (window.pywebview && window.pywebview.api) {
+    window.pywebview.api.run_tweak(script, args).catch(e => {
+      hideSpinner();
+      log(`✕ Bridge error: ${e}`, 'err');
+      toast('Bridge error — check console', 'error');
+      window.tweakDone = null;
+    });
+  } else {
+    // Fallback para preview (não deve ocorrer)
+    setTimeout(() => {
+      if (window.tweakDone && !window.pywebview) {
+        hideSpinner();
+        log(`⚠ No Python backend – running in preview mode`, 'warn');
+        toast('Preview mode — no changes applied', 'info');
+        window.tweakDone = null;
+      }
+    }, 500);
+  }
+}
+
+function checkAdmin() {
+  if (window.pywebview && window.pywebview.api) {
+    window.pywebview.api.is_admin().then(admin => {
+      isAdmin = admin;
+      updateAdminBadge();
+    }).catch(() => {
+      isAdmin = false;
+      updateAdminBadge();
+    });
+  } else {
+    isAdmin = false;
+    updateAdminBadge();
+  }
+}
+
+function updateAdminBadge() {
+  const badge = document.getElementById('admin-badge');
+  const icon  = document.getElementById('admin-icon');
+  const label = document.getElementById('admin-label');
+  if (isAdmin) {
+    badge.className = 'admin-badge ok';
+    icon.textContent = '✓';
+    label.textContent = 'Administrator';
+  } else {
+    badge.className = 'admin-badge bad';
+    icon.textContent = '⚠';
+    label.textContent = 'No Admin Rights';
+  }
+}
+
+// ── Navigation (mesmo código original) ─────────────────
+const PAGE_META = {
+  home:     { title: 'Home',          subtitle: 'System overview and quick actions'            },
+  debloat:  { title: 'Debloat',       subtitle: 'Remove unnecessary apps and tracking'         },
+  services: { title: 'Services',      subtitle: 'Disable unused Windows background services'   },
+  power:    { title: 'Power & CPU',   subtitle: 'Unlock maximum CPU and power performance'     },
+  gaming:   { title: 'Gaming',        subtitle: 'Reduce latency and boost game performance'    },
+  network:  { title: 'Network',       subtitle: 'Optimize TCP and reduce ping'                 },
+  mouse:    { title: 'Mouse & Input', subtitle: 'Precise input without acceleration'           },
+  ram:      { title: 'RAM & Storage', subtitle: 'Free memory and optimize storage access'      },
+  revert:   { title: 'Revert Tweaks', subtitle: 'Undo any optimization safely'                 },
+};
+
+function nav(page) {
+  currentPage = page;
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('nav-' + page)?.classList.add('active');
+  const meta = PAGE_META[page];
+  document.getElementById('page-title').textContent    = meta.title;
+  document.getElementById('page-subtitle').textContent = meta.subtitle;
+  const content = document.getElementById('page-content');
+  content.innerHTML = '';
+  content.className = 'page-enter';
+  setTimeout(() => content.classList.remove('page-enter'), 350);
+  PAGES[page]?.();
+}
+
+function card(icon, title, desc, actions='', extraClass='') {
+  return `<div class="card ${extraClass}">
+    <div class="card-icon">${icon}</div>
+    <div class="card-title">${title}</div>
+    <div class="card-desc">${desc}</div>
+    ${actions ? `<div class="card-actions">${actions}</div>` : ''}
+  </div>`;
+}
+
+const PAGES = {
+  home() {
+    const c = document.getElementById('page-content');
+    c.innerHTML = `
+      <div class="hero-card">
+        <div class="hero-title">Optimize Everything ⚡</div>
+        <div class="hero-sub">Your PC is running stock Windows settings. Apply all optimizations in one click for maximum performance.</div>
+        <div class="stat-chips">
+          <div class="chip chip-blue"><div class="dot"></div> 80+ Services Disabled</div>
+          <div class="chip chip-violet"><div class="dot"></div> 40+ Apps Removed</div>
+          <div class="chip chip-cyan"><div class="dot"></div> TCP Optimized</div>
+          <div class="chip chip-green"><div class="dot"></div> Zero Latency Mouse</div>
+        </div>
+        <button class="btn btn-primary btn-xl" onclick="runTweak('core_tweaks', ['-Action','all'], 'Running all optimizations...')">⚡ One-Click Optimize</button>
+      </div>
+      <div class="quick-cards">
+        <div class="q-card" onclick="nav('debloat')"><div class="q-icon">🗑️</div><div class="q-name">Debloat</div><div class="q-desc">Remove 40+ junk apps</div></div>
+        <div class="q-card" onclick="nav('services')"><div class="q-icon">⚙️</div><div class="q-name">Services</div><div class="q-desc">Disable 80+ services</div></div>
+        <div class="q-card" onclick="nav('power')"><div class="q-icon">⚡</div><div class="q-name">Power</div><div class="q-desc">Max CPU performance</div></div>
+        <div class="q-card" onclick="nav('gaming')"><div class="q-icon">🎮</div><div class="q-name">Gaming</div><div class="q-desc">Priority + HAGS + GameDVR</div></div>
+        <div class="q-card" onclick="nav('network')"><div class="q-icon">🌐</div><div class="q-name">Network</div><div class="q-desc">Low-latency TCP tweaks</div></div>
+        <div class="q-card" onclick="nav('mouse')"><div class="q-icon">🖱️</div><div class="q-name">Mouse</div><div class="q-desc">No acceleration, raw input</div></div>
+      </div>
+    `;
+  },
+  debloat() {
+    const c = document.getElementById('page-content');
+    c.innerHTML = `
+      <div class="grid grid-2">
+        ${card('🗑️','Remove Bloatware','Removes 40+ preinstalled apps: Cortana, Bing, Xbox, Skype, Solitaire, Weather, Maps, Teams, and more. Also removes provisioned packages so they don\'t reinstall after updates.',
+          `<button class="btn btn-danger" onclick="runTweak('debloat', [], 'Removing bloatware...')">🗑️ Remove Now</button>`)}
+        ${card('🔒','Disable Telemetry & Tracking','Blocks Windows data collection, advertising ID, Cortana feedback, diagnostic tasks, and CEIP scheduled tasks at the registry level.',
+          `<button class="btn btn-danger" onclick="runTweak('core_tweaks', ['-Action','visuals'], 'Disabling telemetry...')">🔒 Disable Tracking</button>`)}
+        ${card('🎮','Disable GameDVR & Copilot','Turns off Xbox Game Bar recording, GameDVR overlay, and the Copilot button in taskbar — all background resource drains.',
+          `<button class="btn btn-ghost" onclick="runTweak('core_tweaks', ['-Action','gaming'], 'Disabling GameDVR...')">Disable GameDVR</button>`,
+          'col-span-2')}
+      </div>
+    `;
+  },
+  services() {
+    const c = document.getElementById('page-content');
+    c.innerHTML = `
+      <div class="warn-banner" style="margin-bottom:20px">⚠️&nbsp; <span>Some services affect Bluetooth, VPN, and printers. Use <strong>Revert</strong> if something stops working.</span></div>
+      <div class="grid grid-2">
+        ${card('⚙️','Disable 80+ Unused Services','Stops and disables services unused on a gaming/personal PC: Print Spooler, Remote Desktop, Biometrics, Xbox services, Telemetry, WSearch, SysMain, Bluetooth, and many more.',
+          `<button class="btn btn-primary" onclick="runTweak('disable_services', [], 'Disabling services...')">⚙️ Disable Services</button>
+           <button class="btn btn-ghost" onclick="runTweak('disable_services', ['-revert'], 'Reverting services...')">↩️ Revert</button>`)}
+        ${card('📋','What Gets Disabled','Bluetooth, Print Spooler, Remote Desktop, Biometrics, Xbox Live, Telemetry/DiagTrack, Windows Search, SysMain (Superfetch), WIA, Wi-Fi Direct, Geolocation, Smart Card, and 60+ more.','')}
+      </div>
+    `;
+  },
+  power() {
+    const c = document.getElementById('page-content');
+    c.innerHTML = `
+      <div class="grid grid-2">
+        ${card('⚡','Ultimate Performance Plan','Activates the hidden Ultimate Performance power plan (or High Performance). Disables CPU throttling, idle scaling, and processor power management for the absolute lowest latency.<br><span style="color: #ee9a0b; font-weight: bold;">"NOT RECOMMENDED FOR LAPTOPS"</span>',
+          `<button class="btn btn-primary" onclick="runTweak('core_tweaks', ['-Action','power'], 'Applying power tweaks...')">⚡ Apply</button>
+           <button class="btn btn-ghost" onclick="runTweak('core_tweaks', ['-Action','revert_power'], 'Reverting power...')">↩️ Revert</button>`)}
+        ${card('🖼️','Disable Visual Effects','Sets Windows to Best Performance mode: disables animations, transparency, Aero effects, shadows, thumbnail previews, and taskbar animations.',
+          `<button class="btn btn-primary" onclick="runTweak('core_tweaks', ['-Action','visuals'], 'Disabling visual effects...')">Apply</button>
+           <button class="btn btn-ghost" onclick="runTweak('core_tweaks', ['-Action','revert_visuals'], 'Reverting visuals...')">↩️ Revert</button>`)}
+        ${card('💤','Disable Hibernation','Removes hiberfil.sys (can free several GB), disables hibernate mode, and reduces boot times. Disables USB selective suspend.',
+          `<button class="btn btn-ghost" onclick="runTweak('core_tweaks', ['-Action','power'], 'Disabling hibernation...')">Disable Hibernate</button>`,
+          'col-span-2')}
+      </div>
+    `;
+  },
+  gaming() {
+    const c = document.getElementById('page-content');
+    c.innerHTML = `
+      <div class="grid grid-2">
+        ${card('🎮','Game Priority Boost','Sets CPU and I/O priority to High for popular game executables via IFEO: Fortnite, GTA V, FiveM, CS2, Valorant, Tarkov, Warzone, Rainbow Six Siege.',
+          `<button class="btn btn-primary" onclick="runTweak('core_tweaks', ['-Action','gaming'], 'Boosting game priority...')">🎮 Apply</button>`)}
+        ${card('🖥️','Hardware GPU Scheduling','Enables HAGS — reduces CPU-GPU latency. Works on NVIDIA GTX 10 series and newer, AMD RX 5000 series and newer. Requires reboot.',
+          `<button class="btn btn-primary" onclick="runTweak('core_tweaks', ['-Action','gaming'], 'Enabling HAGS...')">Enable HAGS</button>`)}
+        ${card('📹','Disable Game Bar & DVR','Disables Xbox Game Bar overlay, GameDVR recording, and fullscreen optimizations — these add input latency and waste CPU/GPU cycles.',
+          `<button class="btn btn-danger" onclick="runTweak('core_tweaks', ['-Action','gaming'], 'Disabling Game Bar...')">Disable</button>
+           <button class="btn btn-ghost" onclick="runTweak('core_tweaks', ['-Action','revert_gaming'], 'Reverting gaming...')">↩️ Revert</button>`)}
+        ${card('🏆','Apply All Gaming Tweaks','Applies every gaming optimization at once: priority boost, GameDVR off, HAGS enabled, fullscreen optimization disabled.',
+          `<button class="btn btn-success" onclick="runTweak('core_tweaks', ['-Action','gaming'], 'Applying all gaming tweaks...')">⚡ Apply All</button>`)}
+      </div>
+    `;
+  },
+  network() {
+    const c = document.getElementById('page-content');
+    c.innerHTML = `
+      <div class="grid grid-2">
+        ${card('🌐','Low-Latency TCP','Disables Nagle algorithm, sets TCP ACK frequency to 1, disables TCP chimney offload, and configures auto-tuning for minimum ping.',
+          `<button class="btn btn-primary" onclick="runTweak('core_tweaks', ['-Action','network'], 'Optimizing TCP...')">🌐 Apply</button>
+           <button class="btn btn-ghost" onclick="runTweak('core_tweaks', ['-Action','revert_network'], 'Reverting network...')">↩️ Revert</button>`)}
+        ${card('🔄','Flush DNS Cache','Clears the local DNS resolver cache. Fixes connection issues and forces fresh DNS lookups — useful after changing DNS providers.',
+          `<button class="btn btn-primary" onclick="runTweak('core_tweaks', ['-Action','network'], 'Flushing DNS...')">Flush DNS</button>`)}
+        ${card('⚡','DNS Priority Tweak','Adjusts the Windows DNS service provider order at registry level for faster hostname resolution — from EXM Tweaks method.',
+          `<button class="btn btn-ghost" onclick="runTweak('core_tweaks', ['-Action','network'], 'Setting DNS priority...')">Apply</button>`,
+          'col-span-2')}
+      </div>
+    `;
+  },
+  mouse() {
+    const c = document.getElementById('page-content');
+    c.innerHTML = `
+      <div class="grid grid-2">
+        ${card('🖱️','Disable Mouse Acceleration','Disables "Enhance Pointer Precision" — your mouse will move exactly 1:1 with your physical movement. Essential for FPS games and any precision work.',
+          `<button class="btn btn-primary" onclick="runTweak('core_tweaks', ['-Action','mouse'], 'Disabling acceleration...')">🖱️ Apply</button>
+           <button class="btn btn-ghost" onclick="runTweak('core_tweaks', ['-Action','revert_mouse'], 'Reverting mouse...')">↩️ Revert</button>`)}
+        ${card('✨','Disable Mouse Trails & Effects','Removes mouse trail visual effect and pointer shadow — reduces visual latency and eliminates distractions during precise movements.',
+          `<button class="btn btn-ghost" onclick="runTweak('core_tweaks', ['-Action','mouse'], 'Removing mouse effects...')">Disable Effects</button>`)}
+      </div>
+    `;
+  },
+  ram() {
+    const c = document.getElementById('page-content');
+    c.innerHTML = `
+      <div class="grid grid-2">
+        ${card('🧠','Clear Standby RAM','Clears the Windows standby memory list, modified page list, and working sets. Frees RAM that Windows is holding but not actively using.',
+          `<button class="btn btn-success" onclick="runTweak('clear_ram', [], 'Clearing RAM...')">🧠 Clear RAM</button>`)}
+        ${card('💾','Memory Registry Tweaks','Disables unnecessary kernel code paging, removes page file clearing on shutdown (faster shutdowns), optimizes large system cache settings.',
+          `<button class="btn btn-primary" onclick="runTweak('core_tweaks', ['-Action','ram'], 'Applying RAM tweaks...')">Apply</button>`)}
+        ${card('📁','Explorer Optimizations','Opens File Explorer to This PC instead of Quick Access, disables file indexing on all drives, shows file extensions, removes recent files from Quick Access.',
+          `<button class="btn btn-primary" onclick="runTweak('core_tweaks', ['-Action','explorer'], 'Optimizing Explorer...')">Apply</button>
+           <button class="btn btn-ghost" onclick="runTweak('core_tweaks', ['-Action','revert_explorer'], 'Reverting Explorer...')">↩️ Revert</button>`,
+          'col-span-2')}
+      </div>
+    `;
+  },
+  revert() {
+    const reverts = [
+      ['⚙️', 'Services',      'disable_services', ['-revert'],                    'Re-enables all disabled services back to Manual startup.'],
+      ['⚡', 'Power Plan',    'core_tweaks',       ['-Action','revert_power'],     'Restores Windows default power plan and re-enables Hyper-V.'],
+      ['🖼️', 'Visual Effects','core_tweaks',       ['-Action','revert_visuals'],   'Restores Windows default visual effects and animations.'],
+      ['🌐', 'Network',       'core_tweaks',       ['-Action','revert_network'],   'Resets all TCP settings back to Windows defaults.'],
+      ['📁', 'Explorer',      'core_tweaks',       ['-Action','revert_explorer'],  'Restores Quick Access and file explorer to default settings.'],
+      ['🖱️', 'Mouse',         'core_tweaks',       ['-Action','revert_mouse'],     'Re-enables mouse acceleration (Enhance Pointer Precision).'],
+      ['🎮', 'Gaming',        'core_tweaks',       ['-Action','revert_gaming'],    'Re-enables GameDVR, Game Bar, and restores GPU scheduling.'],
+    ];
+    const c = document.getElementById('page-content');
+    c.innerHTML = `
+      <div style="background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:14px;padding:20px 24px;margin-bottom:24px">
+        <div style="font-size:15px;font-weight:600;color:var(--emerald);margin-bottom:4px">↩️ Safe Revert System</div>
+        <div style="font-size:13px;color:var(--text2)">Use these if any optimization causes issues. Each revert is isolated — you can undo just one category without affecting others.</div>
+      </div>
+      <div class="grid grid-2">
+        ${reverts.map(([icon, name, script, args, desc]) => card(icon, `Revert ${name}`, desc,
+          `<button class="btn btn-ghost" onclick='runTweak("${script}", ${JSON.stringify(args)}, "Reverting ${name}...")'>↩️ Revert ${name}</button>`
+        )).join('')}
+      </div>
+    `;
+  }
+};
+
+// ── Inicialização (ready único) ────────────────────────
+window.addEventListener('pywebviewready', () => {
+  if (!logInitialized) {
+    logInitialized = true;
+    log('✓ Ready.', 'ok');
+  }
+  setupWindowControls();
+  checkAdmin();
+});
+
+window.addEventListener('load', () => {
+  PAGES.home();
+  // Se por algum motivo o pywebview já estiver disponível antes do evento, garantimos
+  if (window.pywebview && window.pywebview.api) {
+    if (!logInitialized) {
+      logInitialized = true;
+      log('✓ Ready.', 'ok');
+    }
+    setupWindowControls();
+    checkAdmin();
+  } else {
+    console.log("Aguardando pywebview...");
+  }
+});
+</script>
+</body>
+</html>
