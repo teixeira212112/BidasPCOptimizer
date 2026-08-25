@@ -6,7 +6,7 @@ import subprocess
 import winreg as reg
 import sys
 import ctypes
-from .state_manager import backup_appx_package
+from state_manager import backup_appx_package
 
 def is_admin():
     try:
