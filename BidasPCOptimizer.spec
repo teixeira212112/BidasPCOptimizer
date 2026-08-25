@@ -5,7 +5,11 @@ a = Analysis(
     ['C:\\Users\\elmam\\Desktop\\BidasPCOptimizer\\main.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[
+        ('scripts', 'scripts'),
+        ('ui.html', '.'),
+        ('helpers', 'helpers'),
+    ],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
