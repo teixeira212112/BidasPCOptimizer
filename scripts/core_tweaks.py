@@ -6,7 +6,7 @@ import subprocess
 import sys
 import ctypes
 import winreg
-from .state_manager import backup_reg_value, restore_reg_value, powercfg_list
+from state_manager import backup_reg_value, restore_reg_value, powercfg_list
 
 def is_admin():
     try:
